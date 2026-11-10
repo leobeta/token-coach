@@ -1,7 +1,7 @@
 {
   "name": "token-coach",
-  "description": "Review a Claude Code session and get habit changes, prompt rewrites and estimated savings to use fewer tokens. Run /token-coach:review.",
-  "version": "0.1.2",
+  "description": "Review a Claude Code session and generate a local visual profiler with habit changes, prompt rewrites and estimated savings. Run /token-coach:review or /token-coach:visual-review.",
+  "version": "0.2.0",
   "author": {
     "name": "sajjadkarimi",
     "url": "https://github.com/sajjadkarimi"

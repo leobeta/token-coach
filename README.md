@@ -16,6 +16,18 @@ transcript, measures where tokens went, and writes a short review. It looks at:
 The review contains before-and-after rewrites of your own prompts, a few habits to
 change, and a range of estimated savings.
 
+## Visual Review
+
+`/token-coach:visual-review` creates one polished, self-contained HTML report for a
+session. It keeps the same coaching analysis while making the evidence easier to scan:
+session metrics, request-token growth, token distribution, tool activity, measured
+inefficiencies, recommendations, and prompt rewrites when supported by the session.
+
+The report is written to `~/.claude/token-coach/reports/<session-id>.html`, outside
+the project, so it never dirties your working tree; open it directly in a browser.
+It works offline, uses no server or analytics, and does not upload transcript
+information. Charts are rendered by local Python-generated SVG, not by the LLM. The regular `/token-coach:review` behavior is unchanged.
+
 Plain Python does the measuring, so the numbers are exact. Claude does the
 interpreting. Savings are what-if estimates from the transcript, not measurements,
 and the review reports what you would pay in tokens, not dollars.
@@ -60,6 +72,9 @@ token-coach/
 | `/token-coach:review list` | List recent sessions, newest = 1 |
 | `/token-coach:review 3` | Review session number 3 from the list |
 | `/token-coach:review path/to/transcript.jsonl` | Review a specific transcript file |
+| `/token-coach:visual-review` | Generate a visual HTML review for the current session |
+| `/token-coach:visual-review 3` | Generate one for session number 3 |
+| `/token-coach:visual-review path/to/transcript.jsonl` | Generate one for a specific transcript |
 
 Typical flow: finish your work, run `/token-coach:review`, read the review, apply one or
 two of the habits next session.
@@ -73,6 +88,7 @@ python3 token-coach/scripts/session_stats.py             # newest session, JSON
 python3 token-coach/scripts/session_stats.py --list      # recent sessions
 python3 token-coach/scripts/session_stats.py --session 2
 python3 token-coach/scripts/session_stats.py path/to.jsonl
+python3 token-coach/scripts/visual_review.py path/to.jsonl --output token-coach-visual-review.html
 ```
 
 ## Tests

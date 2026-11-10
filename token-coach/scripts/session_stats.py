@@ -180,6 +180,7 @@ def analyse(path):
     turn_calls = {}                    # message id -> set of tool_use ids
     res_tok = {}                       # tool_use_id -> (est_tokens, turn_index)
     side_tokens = 0
+    timestamps = []
 
     with open(path) as f:
         for line in f:
@@ -189,6 +190,7 @@ def analyse(path):
                 continue
             msg = e.get("message") or {}
             kind = e.get("type")
+            timestamp = e.get("timestamp")
             if kind == "assistant":
                 u = msg.get("usage") or {}
                 if e.get("isSidechain"):
@@ -197,7 +199,8 @@ def analyse(path):
                 mid = msg.get("id") or e.get("requestId") or e.get("uuid")
                 cur = asst.get(mid)
                 if cur is None:
-                    cur = asst[mid] = {"model": msg.get("model"), "usage": {}}
+                    cur = asst[mid] = {"model": msg.get("model"), "usage": {},
+                                      "timestamp": timestamp}
                     events.append(("assistant", mid))
                 # streamed blocks repeat usage; keep the largest output count seen
                 if u.get("output_tokens", 0) >= cur["usage"].get("output_tokens", -1):
@@ -238,6 +241,8 @@ def analyse(path):
         models[m["model"]] += 1
         ctx.append(u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0)
                    + u.get("cache_creation_input_tokens", 0))
+        if m.get("timestamp"):
+            timestamps.append(m["timestamp"])
     total_in = tot["input"] + tot["cache_read"] + tot["cache_write"]
     session_cost = sum(wcost(m["usage"]) for m in asst.values())
 
@@ -353,6 +358,13 @@ def analyse(path):
         "cache_hit_ratio": round(tot["cache_read"] / total_in, 3) if total_in else None,
         "context_tokens": {"first": ctx[0] if ctx else 0, "peak": max(ctx, default=0),
                            "last": ctx[-1] if ctx else 0},
+        "context_growth": [
+            {"turn": i, "request_tokens": value,
+             "timestamp": asst[mid].get("timestamp")}
+            for i, (mid, value) in enumerate(zip(asst, ctx), 1)
+        ],
+        "session_timestamps": {"first": timestamps[0] if timestamps else None,
+                               "last": timestamps[-1] if timestamps else None},
         "subagent_output_tokens": side_tokens,
         "largest_tool_results": [
             {"tool": n, "target": t, "est_tokens": k}
@@ -360,6 +372,11 @@ def analyse(path):
         "tool_result_totals": [
             {"tool": t, "calls": v[0], "est_tokens": v[1]}
             for t, v in sorted(by_tool.items(), key=lambda kv: -kv[1][1])[:8]],
+        "tool_call_totals": [
+            {"tool": tool, "calls": count}
+            for tool, count in sorted(collections.Counter(
+                call["name"] for call in calls.values() if call["name"]
+            ).items(), key=lambda item: (-item[1], item[0]))[:12]],
         "files_read_3plus_times": {k: v for k, v in reads.items() if v >= 3},
         "prompt_stats": {
             "median_words": words[len(words) // 2] if words else 0,
