@@ -136,14 +136,14 @@ class SessionStatsTest(unittest.TestCase):
         self.assertIn("correction", page)
 
 
-    def test_report_defaults_to_reports_directory_outside_the_project(self):
-        with tempfile.TemporaryDirectory() as reports, tempfile.TemporaryDirectory() as project:
-            target = os.path.join(reports, "nested")
+    def test_report_defaults_to_documents_folder_outside_the_project(self):
+        with tempfile.TemporaryDirectory() as documents, tempfile.TemporaryDirectory() as project:
+            target = os.path.join(documents, "token-coach-output")
             stdout = io.StringIO()
             previous = os.getcwd()
             os.chdir(project)
             try:
-                with mock.patch.object(vr, "REPORTS_DIRECTORY", target), \
+                with mock.patch.object(vr, "documents_directory", return_value=documents), \
                         mock.patch.object(sys, "argv", ["visual_review.py", FIXTURE]), \
                         contextlib.redirect_stdout(stdout):
                     vr.main()
@@ -151,18 +151,28 @@ class SessionStatsTest(unittest.TestCase):
                 os.chdir(previous)
             expected = os.path.join(target, "session.html")
             self.assertTrue(os.path.isfile(expected))
-            self.assertEqual(stdout.getvalue().strip(), os.path.abspath(expected))
+            path, uri = stdout.getvalue().split()
+            self.assertEqual(path, os.path.abspath(expected))
+            self.assertTrue(uri.startswith("file://"))
             self.assertEqual(os.listdir(project), [])
 
     def test_explicit_output_overrides_the_default(self):
         with tempfile.TemporaryDirectory() as reports, tempfile.TemporaryDirectory() as other:
             output = os.path.join(other, "custom.html")
-            with mock.patch.object(vr, "REPORTS_DIRECTORY", reports), \
+            with mock.patch.object(vr, "documents_directory", return_value=reports), \
                     mock.patch.object(sys, "argv", ["visual_review.py", FIXTURE, "--output", output]), \
                     contextlib.redirect_stdout(io.StringIO()):
                 vr.main()
             self.assertTrue(os.path.isfile(output))
             self.assertEqual(os.listdir(reports), [])
+
+    def test_linux_documents_folder_follows_localized_xdg_setting(self):
+        with tempfile.TemporaryDirectory() as home:
+            os.makedirs(os.path.join(home, ".config"))
+            with open(os.path.join(home, ".config", "user-dirs.dirs"), "w", encoding="utf-8") as handle:
+                handle.write('# comment\nXDG_DOCUMENTS_DIR="$HOME/Documentos"\n')
+            with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": ""}):
+                self.assertEqual(vr.xdg_documents(home), os.path.join(home, "Documentos"))
 
 
 if __name__ == "__main__":

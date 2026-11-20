@@ -9,4 +9,5 @@ session specified by "$ARGUMENTS". With no argument, review the current session.
 The helper scripts are at ${CLAUDE_PLUGIN_ROOT}/scripts/session_stats.py and
 ${CLAUDE_PLUGIN_ROOT}/scripts/visual_review.py. Tell the subagent both paths.
 
-When it finishes, show its short completion message, including the local HTML path.
+When it finishes, show its short completion message, including the local HTML path
+and its `file://` URI on its own line so the user can click it to open the report.

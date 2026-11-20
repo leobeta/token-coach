@@ -5,10 +5,11 @@ import datetime
 import html
 import json
 import os
+import pathlib
 import sys
 
-# Reports live outside the user's project so they never dirty its working tree.
-REPORTS_DIRECTORY = os.path.join(os.path.expanduser("~"), ".claude", "token-coach", "reports")
+# Reports live in the user's Documents folder, outside the project, so they never dirty its working tree.
+REPORTS_FOLDER = "token-coach-output"
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIRECTORY not in sys.path:
@@ -388,16 +389,70 @@ def resolve_session(arguments):
     return session_stats.project_files()[0]
 
 
+def windows_documents():
+    """Ask Windows for the Documents folder, which may be localized or redirected to OneDrive."""
+    import ctypes
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                    ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+    # FOLDERID_Documents {FDD39AD0-238F-46AF-ADB4-6C85480369C7}
+    folder = GUID(0xFDD39AD0, 0x238F, 0x46AF,
+                  (ctypes.c_ubyte * 8)(0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7))
+    path = ctypes.c_wchar_p()
+    if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(folder), 0, None, ctypes.byref(path)):
+        return None
+    try:
+        return path.value
+    finally:
+        ctypes.windll.ole32.CoTaskMemFree(path)
+
+
+def xdg_documents(home):
+    """Read XDG_DOCUMENTS_DIR, which Linux desktops localize (e.g. ~/Documentos)."""
+    config = os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")
+    try:
+        with open(os.path.join(config, "user-dirs.dirs"), encoding="utf-8") as handle:
+            for line in handle:
+                name, _, value = line.strip().partition("=")
+                if name == "XDG_DOCUMENTS_DIR":
+                    value = value.strip('"')
+                    if value.startswith("$HOME"):
+                        value = home + value[len("$HOME"):]
+                    return value if os.path.isabs(value) else None
+    except OSError:
+        pass
+    return None
+
+
+def documents_directory():
+    home = os.path.expanduser("~")
+    candidate = None
+    try:
+        if sys.platform == "win32":
+            candidate = windows_documents()
+        elif sys.platform != "darwin":
+            candidate = xdg_documents(home)
+    except (OSError, AttributeError, ValueError):
+        candidate = None
+    for path in (candidate, os.path.join(home, "Documents")):
+        if path and os.path.isdir(path):
+            return path
+    return home
+
+
 def default_output(transcript):
     session = os.path.splitext(os.path.basename(transcript))[0]
-    return os.path.join(REPORTS_DIRECTORY, f"{session}.html")
+    return os.path.join(documents_directory(), REPORTS_FOLDER, f"{session}.html")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("transcript", nargs="?", help="Claude Code transcript JSONL path")
     parser.add_argument("--session", type=int, help="session number from the recent-session list")
-    parser.add_argument("--output", help=f"HTML path (default: {REPORTS_DIRECTORY}/<session>.html)")
+    parser.add_argument("--output", help=f"HTML path (default: <Documents>/{REPORTS_FOLDER}/<session>.html)")
     parser.add_argument("--insights", help="optional JSON produced by the visual-review coach")
     arguments = parser.parse_args()
     try:
@@ -409,7 +464,10 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
     with open(output, "w", encoding="utf-8") as handle:
         handle.write(render(report_data(stats, insights_from_file(arguments.insights))))
-    print(os.path.abspath(output))
+    output = os.path.abspath(output)
+    print(output)
+    # A file:// URI is clickable in most terminals, unlike a bare path.
+    print(pathlib.Path(output).as_uri())
 
 
 if __name__ == "__main__":

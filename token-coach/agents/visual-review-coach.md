@@ -49,7 +49,9 @@ python3 RENDERER SELECTOR --insights INSIGHTS
 ```
 
 Replace `RENDERER`, `SELECTOR` and `INSIGHTS` with the actual quoted values. Do not pass
-`--output`: the script writes to `~/.claude/token-coach/reports/<session>.html` and prints
-that absolute path. Then delete the temporary directory with its `insights.json`.
+`--output`: the script writes to `token-coach-output/<session>.html` inside the user's
+Documents folder (resolved per OS and language) and prints two lines: the absolute path,
+then its `file://` URI. Then delete the temporary directory with its `insights.json`.
 Verify that the report exists. Reply only with a short statement that it was
-generated locally, its path, and that no transcript data was uploaded.
+generated locally, its path, the `file://` URI on its own line so it can be clicked,
+and that no transcript data was uploaded.
