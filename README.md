@@ -23,8 +23,12 @@ session. It keeps the same coaching analysis while making the evidence easier to
 session metrics, request-token growth, token distribution, tool activity, measured
 inefficiencies, recommendations, and prompt rewrites when supported by the session.
 
-The report is written to `~/.claude/token-coach/reports/<session-id>.html`, outside
-the project, so it never dirties your working tree; open it directly in a browser.
+The report is written to `token-coach-output/<session-id>.html` inside your Documents
+folder, outside the project, so it never dirties your working tree. The folder is
+resolved per OS: `~/Documents` on macOS, the Documents known folder on Windows
+(including OneDrive redirection), and `XDG_DOCUMENTS_DIR` on Linux (so a localized
+folder such as `~/Documentos` is honoured), falling back to `~/Documents` or your home.
+The script prints the path and a clickable `file://` link to open it in a browser.
 It works offline, uses no server or analytics, and does not upload transcript
 information. Charts are rendered by local Python-generated SVG, not by the LLM. The regular `/token-coach:review` behavior is unchanged.
 
